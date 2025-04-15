@@ -1,0 +1,6 @@
+/kernel/bin/*
+/initrd_generator/initrd_generator
+/initrd_generator/initrd.img
+*.img
+*.iso
+/iso
