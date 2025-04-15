@@ -20,11 +20,13 @@ int main(struct multiboot *mboot_ptr, u32int initial_stack)
 {
     initial_esp = initial_stack;
     // Initialise all the ISRs and segmentation
+    monitor_write("initialising descriptor tables\n");
     init_descriptor_tables();
     // Initialise the screen (by clearing it)
     monitor_clear();
 
     // Initialise the PIT to 100Hz
+    monitor_write("initialising PIT\n");
     asm volatile("sti");
     init_timer(50);
 
@@ -36,16 +38,21 @@ int main(struct multiboot *mboot_ptr, u32int initial_stack)
     placement_address = initrd_end;
 
     // Start paging.
+    monitor_write("initialising paging\n");
     initialise_paging();
 
     // Start multitasking.
+    monitor_write("initialising tasking\n");
     initialise_tasking();
 
     // Initialise the initial ramdisk, and set it as the filesystem root.
+    monitor_write("initialising root filesystem\n");
     fs_root = initialise_initrd(initrd_location);
 
+    monitor_write("initialising syscalls\n");
     initialise_syscalls();
 
+    monitor_write("switching to usermode\n");
     switch_to_user_mode();
 
     syscall_monitor_write("Hello, user world!\n");
