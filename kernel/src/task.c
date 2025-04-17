@@ -98,8 +98,6 @@ void move_stack(void *new_stack_start, u32int size)
 
 void switch_task()
 {
-    monitor_write("switch_task\n");
-
     // If we haven't initialised tasking yet, just return.
     if (!current_task)
         return;
@@ -209,8 +207,6 @@ int getpid()
 
 void switch_to_user_mode()
 {
-    monitor_write("enter switch_to_user_mode\n");
-
     // Set up our kernel stack.
     set_kernel_stack(current_task->kernel_stack+KERNEL_STACK_SIZE);
     
@@ -233,6 +229,4 @@ void switch_to_user_mode()
       iret; \
     1: \
       "); 
-      
-      monitor_write("exit switch_to_user_mode\n");
-}
+  }

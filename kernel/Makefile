@@ -18,6 +18,8 @@ all: bindir kernel.elf
 # link all of the objects
 kernel.elf: $(AOBJECT) $(COBJECT)
 	$(LD) $(LDFLAGS) $(AOBJECT) $(COBJECT) -L. -Map $(BUILD_DIR)/kernel.map -o $(BUILD_DIR)/kernel.elf
+	$(OBJDUMP) -S $(BUILD_DIR)/kernel.elf > $(BUILD_DIR)/kernel.elf.dump
+
 
 # build c files
 $(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.c

@@ -10,6 +10,10 @@ ASFLAGS=-felf
 OBJCOPY=objcopy
 OBJCOPYFLAGS=-O binary
 
+# objdump
+OBJDUMP=objdump
+OBJDUMPFLAGS=
+
 # strip
 STRIP=strip
 STRIPFLAGS=

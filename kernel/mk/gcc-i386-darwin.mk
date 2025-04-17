@@ -12,6 +12,10 @@ ASFLAGS=-felf
 OBJCOPY=i686-elf-objcopy
 OBJCOPYFLAGS=-O binary
 
+# objdump
+OBJDUMP=i686-elf-objdump
+OBJDUMPFLAGS=
+
 # strip
 STRIP=i686-elf-strip
 STRIPFLAGS=
