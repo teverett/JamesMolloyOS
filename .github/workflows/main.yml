@@ -36,13 +36,13 @@ jobs:
 
     - uses: actions/upload-artifact@v4
       with:
-        name: kernel/bin/kernel.elf
-        path: kernel.elf
+        name: kernel.elf
+        path: kernel/bin/kernel.elf
 
     - uses: actions/upload-artifact@v4
       with:
-        name: kernel/bin/kernel.elf.dump
-        path: kernel.elf.dump
+        name: kernel.elf.dump
+        path: kernel/bin/kernel.elf.dump
 
     - uses: actions/upload-artifact@v4
       with:
