@@ -34,3 +34,18 @@ jobs:
     - name: build
       run: make all
 
+    - uses: actions/upload-artifact@v4
+      with:
+        name: kernel/bin/kernel.elf
+        path: kernel.elf
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: kernel/bin/kernel.elf.dump
+        path: kernel.elf.dump
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: initrd.img
+        path: initrd.img
+
