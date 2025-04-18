@@ -24,7 +24,7 @@ run: kernel/bin/kernel.elf initrd.img
 	$(QEMU) -kernel kernel/bin/kernel.elf -initrd initrd.img
 
 debug: kernel/bin/kernel.elf initrd.img
-	$(QEMU) -kernel kernel/bin/kernel.elf -initrd initrd.img  -gdb tcp::1234 -S
+	$(QEMU) -kernel kernel/bin/kernel.elf -initrd initrd.img -gdb tcp::1234 -S
 
 clean:
 	rm -f initrd.img
