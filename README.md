@@ -19,5 +19,5 @@ https://forum.osdev.org/viewtopic.php?t=57734
 
 The OS boots into user mode as intended.  The GitHub actions config contains the necessary configuratation steps to create a working build environment on OS X and Linux.
 
-(https://github.com/teverett/JamesMolloyOS/blob/main/pic/boot.png?raw=true)
+![boot](https://github.com/teverett/JamesMolloyOS/blob/main/pic/boot.png?raw=true)
 
