@@ -13,12 +13,23 @@
 
 struct multiboot;
 
+extern u32int stack_bottom;
+extern u32int stack_top;
 extern u32int placement_address;
 u32int initial_esp;
 
 int main(struct multiboot *mboot_ptr, u32int initial_stack)
 {
-    initial_esp = initial_stack;
+    // find the stack defined in the linker script
+    u32int kernel_stack_bottom = (u32int) &stack_bottom;
+    u32int kernel_stack_top = (u32int) &stack_top;
+    
+    // save the initial stack pointer (task.c::move_stack needs this)
+    initial_esp = kernel_stack_bottom;
+
+    // set the stack up
+    asm volatile("mov %0, %%esp" : : "r" (kernel_stack_bottom));
+
     // Initialise all the ISRs and segmentation
     monitor_write("initialising descriptor tables\n");
     init_descriptor_tables();
