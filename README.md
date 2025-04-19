@@ -1,3 +1,6 @@
+
+[![CI](https://github.com/teverett/JamesMolloyOS/actions/workflows/main.yml/badge.svg)](https://github.com/teverett/JamesMolloyOS/actions/workflows/main.yml)
+
 # James Molloy Tutorial OS
 
 ## History
