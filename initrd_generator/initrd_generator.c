@@ -12,6 +12,14 @@ struct initrd_header {
 int main(int argc, char **argv) {
    int nheaders = (argc-1)/2;
    struct initrd_header headers[64];
+   // Bug fix: nheaders was previously derived straight from argc with no
+   // upper bound, so passing more than 64 file pairs on the command line
+   // wrote past the end of the fixed-size `headers` stack array.
+   if (nheaders > 64)
+   {
+       printf("Error: too many files (max 64)\n");
+       return 1;
+   }
    printf("nheaders: %d\n", nheaders);
    //printf("size of header: %d\n", sizeof(struct initrd_header));
    unsigned int off = sizeof(struct initrd_header) * 64 + sizeof(int);

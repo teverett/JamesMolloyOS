@@ -163,7 +163,13 @@ int fork()
     new_task->esp = new_task->ebp = 0;
     new_task->eip = 0;
     new_task->page_directory = directory;
-    current_task->kernel_stack = kmalloc_a(KERNEL_STACK_SIZE);
+    // Bug fix: this used to write into current_task->kernel_stack instead of
+    // new_task->kernel_stack, which (a) leaked the parent's existing kernel
+    // stack allocation by silently overwriting the only pointer to it, and
+    // (b) left new_task->kernel_stack uninitialised garbage (kmalloc doesn't
+    // zero memory), which the scheduler would later dereference as a stack
+    // pointer when switching to the child task.
+    new_task->kernel_stack = kmalloc_a(KERNEL_STACK_SIZE);
     new_task->next = 0;
 
     // Add it to the end of the ready queue.

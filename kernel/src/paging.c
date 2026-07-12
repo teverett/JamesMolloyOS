@@ -68,6 +68,14 @@ static u32int first_frame()
             }
         }
     }
+    // Bug fix: falling off the end of a non-void function is undefined
+    // behaviour and previously returned whatever garbage was left in the
+    // return register. alloc_frame() used that garbage as a frame index,
+    // corrupting the frames bitset with an out-of-bounds write. Physical
+    // memory exhaustion is unrecoverable here, so panic instead of
+    // returning invalid data.
+    PANIC("first_frame: out of physical memory - no free frames");
+    return (u32int)-1;
 }
 
 // Function to allocate a frame.
@@ -82,7 +90,12 @@ void alloc_frame(page_t *page, int is_kernel, int is_writeable)
         u32int idx = first_frame();
         if (idx == (u32int)-1)
         {
-            // PANIC! no free frames!!
+            // Bug fix: this branch used to be an empty comment, so execution
+            // fell through and called set_frame(idx*0x1000) with idx == -1,
+            // an out-of-bounds write into the frames bitset. first_frame()
+            // now panics before returning -1, so this is unreachable, but
+            // keep a real panic here too as a guard against future changes.
+            PANIC("alloc_frame: out of physical memory - no free frames");
         }
         set_frame(idx*0x1000);
         page->present = 1;
@@ -235,7 +248,10 @@ static page_table_t *clone_table(page_table_t *src, u32int *physAddr)
     // Make a new page table, which is page aligned.
     page_table_t *table = (page_table_t*)kmalloc_ap(sizeof(page_table_t), physAddr);
     // Ensure that the new table is blank.
-    memset(table, 0, sizeof(page_directory_t));
+    // Bug fix: this used to memset sizeof(page_directory_t) bytes (~8KB) into
+    // a buffer only sizeof(page_table_t) bytes (4KB) was allocated for,
+    // overflowing into whatever heap memory followed it on every clone.
+    memset(table, 0, sizeof(page_table_t));
 
     // For every entry in the table...
     int i;

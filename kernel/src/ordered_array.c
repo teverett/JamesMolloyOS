@@ -39,6 +39,12 @@ void destroy_ordered_array(ordered_array_t *array)
 void insert_ordered_array(type_t item, ordered_array_t *array)
 {
     ASSERT(array->less_than);
+    // Bug fix: there was previously no check that the array had spare
+    // capacity. When full (size == max_size), the shift loop below wrote to
+    // array->array[max_size], one element past the allocated buffer - an
+    // out-of-bounds heap write that silently corrupted whatever memory
+    // followed the array.
+    ASSERT(array->size < array->max_size);
     u32int iterator = 0;
     while (iterator < array->size && array->less_than(array->array[iterator], item))
         iterator++;

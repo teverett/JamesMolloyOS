@@ -52,11 +52,16 @@ ISR_ERRCODE   13
 ISR_ERRCODE   14
 ISR_NOERRCODE 15
 ISR_NOERRCODE 16
-ISR_NOERRCODE 17
+; Bug fix (per OSDev wiki "James Molloy's Tutorial Known Bugs" - ISR 17 and 21
+; have error codes): the CPU itself pushes an error code for exceptions 17
+; (#AC, Alignment Check) and 21 (#CP, Control Protection). Using
+; ISR_NOERRCODE here pushed an extra dummy error code on top of the CPU's
+; real one, misaligning the stack that isr_common_stub/registers_t expects.
+ISR_ERRCODE   17
 ISR_NOERRCODE 18
 ISR_NOERRCODE 19
 ISR_NOERRCODE 20
-ISR_NOERRCODE 21
+ISR_ERRCODE   21
 ISR_NOERRCODE 22
 ISR_NOERRCODE 23
 ISR_NOERRCODE 24
@@ -103,7 +108,13 @@ isr_common_stub:
     mov fs, ax
     mov gs, ax
 
+    ; Bug fix: isr_handler now takes a registers_t* instead of a registers_t
+    ; by value (see isr.c), so explicitly push a pointer to the register
+    ; state (the current esp) as its argument, and pop it back off after the
+    ; call returns.
+    push esp
     call isr_handler
+    add esp, 4
 
     pop ebx        ; reload the original data segment descriptor
     mov ds, bx
@@ -134,7 +145,11 @@ irq_common_stub:
     mov fs, ax
     mov gs, ax
 
+    ; Bug fix: same as isr_common_stub above - irq_handler now takes a
+    ; registers_t* instead of a registers_t by value.
+    push esp
     call irq_handler
+    add esp, 4
 
     pop ebx        ; reload the original data segment descriptor
     mov ds, bx

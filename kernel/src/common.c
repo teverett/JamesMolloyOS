@@ -38,6 +38,39 @@ void memset(u8int *dest, u8int val, u32int len)
     for ( ; len != 0; len--) *temp++ = val;
 }
 
+// Bug fix (per OSDev wiki "James Molloy's Tutorial Known Bugs" - Missing
+// functions): GCC assumes memcpy, memset, memmove and memcmp are always
+// available and can emit implicit calls to them for optimization purposes,
+// even from code that never calls them directly. Only memcpy/memset were
+// provided; add the other two.
+
+// Copy len bytes from src to dest, correctly handling overlapping regions.
+void memmove(u8int *dest, const u8int *src, u32int len)
+{
+    if (dest < src)
+    {
+        for (u32int i = 0; i < len; i++)
+            dest[i] = src[i];
+    }
+    else
+    {
+        for (u32int i = len; i != 0; i--)
+            dest[i-1] = src[i-1];
+    }
+}
+
+// Compare len bytes of s1 and s2. Returns 0 if equal, a negative value if
+// s1 < s2, or a positive value if s1 > s2 (as unsigned bytes).
+int memcmp(const u8int *s1, const u8int *s2, u32int len)
+{
+    for ( ; len != 0; len--, s1++, s2++)
+    {
+        if (*s1 != *s2)
+            return (int)*s1 - (int)*s2;
+    }
+    return 0;
+}
+
 // Compare two strings. Should return -1 if 
 // str1 < str2, 0 if they are equal or 1 otherwise.
 int strcmp(char *str1, char *str2)
@@ -64,28 +97,34 @@ int strcmp(char *str1, char *str2)
 // return dest.
 char *strcpy(char *dest, const char *src)
 {
-    do
-    {
-      *dest++ = *src++;
-    }
-    while (*src != 0);
+    char *ret = dest;
+    // Bug fix: the old `while (*src != 0)` post-check tested src *after* it
+    // had already advanced past the copied byte, so the loop stopped one byte
+    // early and never copied the terminating '\0'. Every strcpy'd buffer was
+    // left unterminated, causing later strlen/strcmp/strcat calls to read
+    // past the intended field into whatever memory followed it. Folding the
+    // copy and the terminator check into the loop condition copies the NUL
+    // as the final iteration, then stops.
+    while ((*dest++ = *src++) != 0)
+        ;
+    return ret;
 }
 
 // Concatenate the NULL-terminated string src onto
 // the end of dest, and return dest.
 char *strcat(char *dest, const char *src)
 {
+    char *ret = dest;
+    // Bug fix: `*dest = *dest++;` modified and read `dest` twice between
+    // sequence points, which is undefined behaviour in C, so this
+    // end-of-string scan didn't reliably advance dest to the '\0'. Just
+    // advance the pointer; there's nothing to write until we reach the end.
     while (*dest != 0)
-    {
-        *dest = *dest++;
-    }
+        dest++;
 
-    do
-    {
-        *dest++ = *src++;
-    }
-    while (*src != 0);
-    return dest;
+    while ((*dest++ = *src++) != 0)
+        ;
+    return ret;
 }
 
 int strlen(char *src)

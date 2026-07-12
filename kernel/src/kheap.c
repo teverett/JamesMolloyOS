@@ -26,7 +26,12 @@ u32int kmalloc_int(u32int sz, int align, u32int *phys)
     }
     else
     {
-        if (align == 1 && (placement_address & 0xFFFFF000) )
+        // Bug fix (per OSDev wiki "James Molloy's Tutorial Known Bugs" -
+        // kmalloc isn't properly aligned): this tested the high bits of
+        // placement_address with 0xFFFFF000, which is true for virtually any
+        // nonzero address regardless of alignment. "Not page-aligned" means
+        // the low 12 bits are nonzero, so test with 0xFFF instead.
+        if (align == 1 && (placement_address & 0xFFF) )
         {
             // Align the placement address;
             placement_address &= 0xFFFFF000;
@@ -73,7 +78,12 @@ static void expand(u32int new_size, heap_t *heap)
     ASSERT(new_size > heap->end_address - heap->start_address);
 
     // Get the nearest following page boundary.
-    if (new_size&0xFFFFF000 != 0)
+    // Bug fix: `new_size&0xFFFFF000 != 0` parses as `new_size & (0xFFFFF000 != 0)`
+    // because `!=` binds tighter than `&` in C, so this only ever tested new_size's
+    // low bit. It was also testing the wrong bits regardless of parentheses - "is
+    // this page aligned" means "are the low 12 bits zero", not "are the high bits
+    // zero". Test the low 12 bits directly.
+    if (new_size & 0xFFF)
     {
         new_size &= 0xFFFFF000;
         new_size += 0x1000;
@@ -101,9 +111,14 @@ static u32int contract(u32int new_size, heap_t *heap)
     ASSERT(new_size < heap->end_address-heap->start_address);
 
     // Get the nearest following page boundary.
-    if (new_size&0x1000)
+    // Bug fix: `new_size & 0x1000` only tests bit 12 rather than checking for
+    // any low-order (sub-page) bits, and `new_size &= 0x1000` then threw away
+    // every bit except that one instead of rounding down to a page boundary -
+    // collapsing new_size to either 0 or 0x1000 regardless of its real value.
+    // Mirror the (now-fixed) rounding logic in expand() above.
+    if (new_size & 0xFFF)
     {
-        new_size &= 0x1000;
+        new_size &= 0xFFFFF000;
         new_size += 0x1000;
     }
 
@@ -136,7 +151,10 @@ static s32int find_smallest_hole(u32int size, u8int page_align, heap_t *heap)
             // Page-align the starting point of this header.
             u32int location = (u32int)header;
             s32int offset = 0;
-            if ((location+sizeof(header_t)) & 0xFFFFF000 != 0)
+            // Bug fix: same `& ... != 0` precedence/mask bug as in expand() -
+            // this must test the low 12 bits to detect a non-page-aligned
+            // location, not the high bits with the wrong operator precedence.
+            if ((location+sizeof(header_t)) & 0xFFF)
                 offset = 0x1000 /* page size */  - (location+sizeof(header_t))%0x1000;
             s32int hole_size = (s32int)header->size - offset;
             // Can we fit now?
@@ -174,7 +192,8 @@ heap_t *create_heap(u32int start, u32int end_addr, u32int max, u8int supervisor,
     start += sizeof(type_t)*HEAP_INDEX_SIZE;
 
     // Make sure the start address is page-aligned.
-    if (start & 0xFFFFF000 != 0)
+    // Bug fix: same `& ... != 0` precedence/mask bug as in expand().
+    if (start & 0xFFF)
     {
         start &= 0xFFFFF000;
         start += 0x1000;
@@ -332,6 +351,12 @@ void free(void *p, heap_t *heap)
     // Sanity checks.
     ASSERT(header->magic == HEAP_MAGIC);
     ASSERT(footer->magic == HEAP_MAGIC);
+    // Bug fix: there was previously no check for a double free. Freeing the
+    // same pointer twice would re-run the unify/insert logic below and could
+    // insert the same header into heap->index a second time, letting a later
+    // alloc() hand out the same memory block to two different callers.
+    // Fail fast instead of silently corrupting the free-list.
+    ASSERT(header->is_hole == 0);
 
     // Make us a hole.
     header->is_hole = 1;
@@ -391,13 +416,23 @@ void free(void *p, heap_t *heap)
         else
         {
             // We will no longer exist :(. Remove us from the index.
+            // Bug fix: this used to search the index for `test_header`, a
+            // leftover from the unwind-right step above that may not even be
+            // a valid header if unify-right didn't happen. We actually want
+            // to remove `header` - the block being contracted away - since
+            // its memory is being unmapped.
             u32int iterator = 0;
             while ( (iterator < heap->index.size) &&
-                    (lookup_ordered_array(iterator, &heap->index) != (void*)test_header) )
+                    (lookup_ordered_array(iterator, &heap->index) != (void*)header) )
                 iterator++;
             // If we didn't find ourselves, we have nothing to remove.
             if (iterator < heap->index.size)
                 remove_ordered_array(iterator, &heap->index);
+            // Bug fix: without this, the `if (do_add == 1)` below would
+            // re-insert `header` into the index even though its memory was
+            // just unmapped by contract(), leaving a dangling pointer in the
+            // free-list that a future alloc() could dereference.
+            do_add = 0;
         }
     }
 

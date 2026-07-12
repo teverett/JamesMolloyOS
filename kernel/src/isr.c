@@ -16,16 +16,29 @@ void register_interrupt_handler(u8int n, isr_t handler)
 }
 
 // This gets called from our ASM interrupt handler stub.
-void isr_handler(registers_t regs)
+// Bug fix (per OSDev wiki "James Molloy's Tutorial Known Bugs" - Interrupt
+// handlers corrupt interrupted state): isr_common_stub doesn't actually push
+// a registers_t by value - it relies on esp, at the moment of `call
+// isr_handler`, already pointing at a stack layout that matches registers_t.
+// Declaring the parameter as `registers_t regs` (by value) told the compiler
+// it owned that memory as scratch space it's free to overwrite, since a
+// by-value parameter is normally a private copy. But isr_common_stub reuses
+// that exact same memory afterwards (`popa`) to restore the interrupted
+// register state, so any clobbering by the compiler silently corrupted the
+// registers restored to the interrupted context. Taking a pointer instead
+// makes it explicit that this memory is shared with the caller and must not
+// be treated as private scratch space. See the matching change in
+// interrupt.asm, which now pushes that pointer before calling.
+void isr_handler(registers_t *regs)
 {
     // This line is important. When the processor extends the 8-bit interrupt number
     // to a 32bit value, it sign-extends, not zero extends. So if the most significant
     // bit (0x80) is set, regs.int_no will be very large (about 0xffffff80).
-    u8int int_no = regs.int_no & 0xFF;
+    u8int int_no = regs->int_no & 0xFF;
     if (interrupt_handlers[int_no] != 0)
     {
         isr_t handler = interrupt_handlers[int_no];
-        handler(&regs);
+        handler(regs);
     }
     else
     {
@@ -37,11 +50,12 @@ void isr_handler(registers_t regs)
 }
 
 // This gets called from our ASM interrupt handler stub.
-void irq_handler(registers_t regs)
+// Bug fix: same by-value-parameter ABI hazard as isr_handler() above.
+void irq_handler(registers_t *regs)
 {
     // Send an EOI (end of interrupt) signal to the PICs.
     // If this interrupt involved the slave.
-    if (regs.int_no >= 40)
+    if (regs->int_no >= 40)
     {
         // Send reset signal to slave.
         outb(0xA0, 0x20);
@@ -49,10 +63,10 @@ void irq_handler(registers_t regs)
     // Send reset signal to master. (As well as slave, if necessary).
     outb(0x20, 0x20);
 
-    if (interrupt_handlers[regs.int_no] != 0)
+    if (interrupt_handlers[regs->int_no] != 0)
     {
-        isr_t handler = interrupt_handlers[regs.int_no];
-        handler(&regs);
+        isr_t handler = interrupt_handlers[regs->int_no];
+        handler(regs);
     }
 
 }
