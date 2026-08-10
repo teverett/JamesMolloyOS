@@ -12,7 +12,7 @@ jobs:
       fail-fast: false
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: install packages
       run: brew install nasm i686-elf-gcc
@@ -26,7 +26,7 @@ jobs:
       fail-fast: false
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: install packages
       run: sudo apt install nasm
